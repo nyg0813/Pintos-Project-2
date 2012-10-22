@@ -20,17 +20,37 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+//tid_t
+//process_execute (const char *file_name) 
+// We will support a max of 10 tokens 50 chars each
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *argv)
 {
-  char *fn_copy;
+  char *fn_copy, *file_name;
   tid_t tid;
+ 
+  int tokens, x=0, y=0, i=0;
+  char token[10][50];
+  while ((argv[i] != '\n') && (argv[i] != '\0')) {
+    
+    token[x][y++] = argv[i++]; 
+    if(argv[i] == ' ') {	//End of token
+        token[x][y] = '\0'; 
+	tokens++;
+ 	x++;
+	y=0;
+	while(*(++argv) != ' ') {} //Find next token
+        argv--;	//to offset the argv++ after this
+    }
+    argv++; 
+  }
 
+  file_name = token[0];
+ 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
