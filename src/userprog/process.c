@@ -43,13 +43,12 @@ process_execute (const char *argv)
 	tokens++;
  	x++;
 	y=0;
-	while(*(++argv) != ' ') {} //Find next token
-        argv--;	//to offset the argv++ after this
+	while(argv[++i] == ' ') {} //Find next token
     }
-    argv++; 
   }
+  token[x][y] = '\0';
 
-  file_name = token[0];
+  file_name = &token[0][0];
  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
