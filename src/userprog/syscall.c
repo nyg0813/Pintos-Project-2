@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "devices/shutdown.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 void halt (void);
@@ -28,7 +29,6 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 //  printf ("system call!\n");
@@ -54,7 +54,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_HALT:{ halt(); 
 		    break;
 		  }
-    case SYS_EXIT:{ exit((int *)arg1); 
+    case SYS_EXIT:{ exit(&arg1); //arg1 set by exit
+		    f->eax = arg1;
 		    break;
 		  }
     case SYS_EXEC:{ exec((const char *)arg1); 
@@ -106,6 +107,26 @@ void halt (void)
 
 void exit (int *status)
 {
+ //process_exit(); //From process.c and thread.c
+  struct thread *cur = thread_current();
+  uint32_t *pd;
+  pd = cur->pagedir;
+  if (pd != NULL) {
+    cur->pagedir = NULL;
+    pagedir_activate (NULL);
+    pagedir_destroy (pd);
+  } 
+  else {
+    *status=-1; //pd NULL already
+    return;
+  }
+  list_remove (&thread_current()->allelem);
+  thread_current()->status = THREAD_DYING;
+  *status = 0; // success
+
+  // TODO: print exit(%d)\n", ...); process_name and return code
+  // TODO: Release all locks acquired by current thread
+  // TODO: Release all file descriptors held by current thread 
 }
 
 void exec (const char *cmd_line)
@@ -158,13 +179,5 @@ unsigned tell (int fd)
 
 void close (int fd)
 {
-}
-
-int check_ptr (void *ptr)
-{
-  if(!ptr) 
-    return 0;
-  else
-    return 1;
 }
 
