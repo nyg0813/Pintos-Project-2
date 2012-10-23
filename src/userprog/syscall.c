@@ -4,6 +4,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 void halt (void);
@@ -30,25 +31,26 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
-  int syscall_type, status;
+//  printf ("system call!\n");
+  int type, status;
   int arg1, arg2, arg3;
-  char **esp = f->esp;
-  *esp += sizeof(int);
-  memcpy(&syscall_type, *esp, sizeof(int));
- 
+  int *esp = (int *)(f->esp);
+  type = *esp;
+  arg1 = *++esp;
+  arg2 = *++esp;
+  arg3 = *++esp;
+  //esp -= 4;
+  /*
+  memcpy(&syscall_type, esp, sizeof(int));
   *esp += sizeof(int);
   memcpy(&arg1, *esp, sizeof(int));
-  
   *esp += sizeof(int);
   memcpy(&arg2, *esp, sizeof(int));
-  
   *esp += sizeof(int);
   memcpy(&arg3, *esp, sizeof(int));
-
   *esp -= (sizeof(int) *3); //Restore SP
-	
-  switch (syscall_type) {
+  */	
+  switch (type) {
     case SYS_HALT:{ halt(); 
 		    break;
 		  }
@@ -99,61 +101,70 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 void halt (void)
 {
+  shutdown_power_off();
 }
 
 void exit (int *status)
 {
 }
 
-void exec(const char *cmd_line)
+void exec (const char *cmd_line)
 {
 }
 
-int wait(int pid)
+int wait (int pid)
 {
   return 0;
 }
 
-bool create(const char *file, unsigned initial_size)
+bool create (const char *file, unsigned initial_size)
 {
   return 0;
 }
 
-bool remove(const char *file)
+bool remove (const char *file)
 {
   return 0;
 }
 
-int open(const char *file)
+int open (const char *file)
 {
   return 0;
 }
 
-int filesize(int fd)
+int filesize (int fd)
 {
   return 0;
 }
 
-int read(int fd, void *buffer, unsigned size)
+int read (int fd, void *buffer, unsigned size)
 {
   return 0;
 }
 
-int write(int fd, const void *buffer, unsigned size)
+int write (int fd, const void *buffer, unsigned size)
 {
   return 0;
 }
 
-void seek(int fd, unsigned position)
+void seek (int fd, unsigned position)
 {
 }
 
-unsigned tell(int fd)
+unsigned tell (int fd)
 {
   return 0;
 }
 
-void close(int fd)
+void close (int fd)
 {
+}
+
+int check_ptr (void *ptr)
+{
+  if(!ptr) 
+    return 0;
+  else
+    return 1;
 }
 
