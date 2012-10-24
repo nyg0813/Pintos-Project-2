@@ -121,8 +121,8 @@ void exit (int *status)
  //process_exit(); //From process.c and thread.c
   struct thread *cur = thread_current();
   uint32_t *pd;
-  pd = cur->pagedir;
   *status = 0; // success
+  pd = cur->pagedir;
   if (pd != NULL) {
     cur->pagedir = NULL;
     pagedir_activate (NULL);
@@ -198,7 +198,6 @@ void check_ptr(int ptr)
   t = thread_current();
   if( !ptr && is_user_vaddr((const void *)ptr) && 
        pagedir_get_page(t->pagedir, (const void *)ptr) ){
-     return;
   } 
   else {
      terminate_process();
@@ -207,6 +206,6 @@ void check_ptr(int ptr)
 
 void terminate_process(void)
 {
-   return;  //Same as exit - terminate the process and free its resources
+     //Same as exit - terminate the process and free its resources
 }
 
