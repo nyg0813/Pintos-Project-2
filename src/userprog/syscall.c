@@ -4,8 +4,19 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 #include "devices/shutdown.h"
 #include "userprog/pagedir.h"
+
+#ifndef SUCCESS 
+#define SUCCESS 1
+#define FAILURE -1
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#define FALSE 0
+#endif
 
 static void syscall_handler (struct intr_frame *);
 void halt (void);
@@ -22,6 +33,8 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
+void check_ptr(int ptr);
+void terminate_process(void);
 
 void
 syscall_init (void) 
@@ -29,10 +42,12 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 //  printf ("system call!\n");
   int type, status;
+  int  rc=SUCCESS;
   int arg1, arg2, arg3;
   int *esp = (int *)(f->esp);
   type = *esp;
@@ -40,17 +55,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   arg2 = *++esp;
   arg3 = *++esp;
   //esp -= 4;
-  /*
-  memcpy(&syscall_type, esp, sizeof(int));
-  *esp += sizeof(int);
-  memcpy(&arg1, *esp, sizeof(int));
-  *esp += sizeof(int);
-  memcpy(&arg2, *esp, sizeof(int));
-  *esp += sizeof(int);
-  memcpy(&arg3, *esp, sizeof(int));
-  *esp -= (sizeof(int) *3); //Restore SP
-  */	
-  switch (type) {
+ switch (type) {
     case SYS_HALT:{ halt(); 
 		    break;
 		  }
@@ -58,32 +63,38 @@ syscall_handler (struct intr_frame *f UNUSED)
 		    f->eax = arg1;
 		    break;
 		  }
-    case SYS_EXEC:{ exec((const char *)arg1); 
-		    break;
+    case SYS_EXEC:{ check_ptr(arg1);
+		    exec((const char *)arg1); 
+  		    break;
 		  }
     case SYS_WAIT:{ wait((int)arg1);
 		    break;
 		  }
     case SYS_CREATE:
-		  { create((const char *)arg1, (unsigned)arg2);
+		  { check_ptr(arg1);
+		    create((const char *)arg1, (unsigned)arg2);
    		    break;
 		  }
     case SYS_REMOVE:
-		  { remove((const char *)arg1);
+		  { check_ptr(arg1);
+		    remove((const char *)arg1);
 		    break;
    		  }
-    case SYS_OPEN:{ open((const char *)arg1);
+    case SYS_OPEN:{ check_ptr(arg1);
+		    open((const char *)arg1);
 		    break; 		
 	          }
     case SYS_FILESIZE:
 		  { filesize((int)arg1);
 		    break;
 		  }
-    case SYS_READ:{ read((int)arg1, (void *)arg2, (unsigned)arg3);
+    case SYS_READ:{ check_ptr(arg2);
+		    read((int)arg1, (void *)arg2, (unsigned)arg3);
 		    break;
 		  }
     case SYS_WRITE:
-		  { write((int)arg1, (const void *)arg2, (unsigned)arg3);
+		  { check_ptr(arg2);
+		    write((int)arg1, (const void *)arg2, (unsigned)arg3);
 		    break;
 		  }
     case SYS_SEEK:{ seek((int)arg1, (unsigned)arg2);
@@ -111,6 +122,7 @@ void exit (int *status)
   struct thread *cur = thread_current();
   uint32_t *pd;
   pd = cur->pagedir;
+  *status = 0; // success
   if (pd != NULL) {
     cur->pagedir = NULL;
     pagedir_activate (NULL);
@@ -118,11 +130,9 @@ void exit (int *status)
   } 
   else {
     *status=-1; //pd NULL already
-    return;
   }
   list_remove (&thread_current()->allelem);
   thread_current()->status = THREAD_DYING;
-  *status = 0; // success
 
   // TODO: print exit(%d)\n", ...); process_name and return code
   // TODO: Release all locks acquired by current thread
@@ -165,6 +175,7 @@ int read (int fd, void *buffer, unsigned size)
 
 int write (int fd, const void *buffer, unsigned size)
 {
+  
   return 0;
 }
 
@@ -179,5 +190,23 @@ unsigned tell (int fd)
 
 void close (int fd)
 {
+}
+
+void check_ptr(int ptr)
+{
+  struct thread *t;
+  t = thread_current();
+  if( !ptr && is_user_vaddr((const void *)ptr) && 
+       pagedir_get_page(t->pagedir, (const void *)ptr) ){
+     return;
+  } 
+  else {
+     terminate_process();
+  }
+}
+
+void terminate_process(void)
+{
+   return;  //Same as exit - terminate the process and free its resources
 }
 
