@@ -33,7 +33,7 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
-void check_ptr(int ptr);
+void check_ptr(const void *ptr);
 void terminate_process(void);
 
 void
@@ -41,7 +41,7 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
-
+//TODO: Make all this code re-entrant by multiple threads
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
@@ -63,7 +63,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		    f->eax = arg1;
 		    break;
 		  }
-    case SYS_EXEC:{ check_ptr(arg1);
+    case SYS_EXEC:{ check_ptr((const void *)arg1);
 		    exec((const char *)arg1); 
   		    break;
 		  }
@@ -71,16 +71,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 		    break;
 		  }
     case SYS_CREATE:
-		  { check_ptr(arg1);
+		  { check_ptr((const void *)arg1);
 		    create((const char *)arg1, (unsigned)arg2);
    		    break;
 		  }
     case SYS_REMOVE:
-		  { check_ptr(arg1);
+		  { check_ptr((const void *)arg1);
 		    remove((const char *)arg1);
 		    break;
    		  }
-    case SYS_OPEN:{ check_ptr(arg1);
+    case SYS_OPEN:{ check_ptr((const void *)arg1);
 		    open((const char *)arg1);
 		    break; 		
 	          }
@@ -175,7 +175,16 @@ int read (int fd, void *buffer, unsigned size)
 
 int write (int fd, const void *buffer, unsigned size)
 {
-  
+  if(fd == 1) { //write to console aka printf
+    if(size>=400) {
+      putbuf(buffer, 400);	
+      return 400; //Arbitrarily chosen 
+    }
+    else {
+      putbuf(buffer, size);
+      return size;
+    }
+  }  
   return 0;
 }
 
@@ -191,13 +200,15 @@ unsigned tell (int fd)
 void close (int fd)
 {
 }
-
-void check_ptr(int ptr)
+/*IMPORTANT TODO: check if EVERY access to user memory is valid.
+Currently, only the boundary is checked. Every access should be checked
+*/
+void check_ptr(const void *ptr)
 {
   struct thread *t;
   t = thread_current();
-  if( !ptr && is_user_vaddr((const void *)ptr) && 
-       pagedir_get_page(t->pagedir, (const void *)ptr) ){
+  if( !ptr && is_user_vaddr(ptr) && 
+       pagedir_get_page(t->pagedir, ptr) ){
   } 
   else {
      terminate_process();
